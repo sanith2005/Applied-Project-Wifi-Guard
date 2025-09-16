@@ -1,3 +1,5 @@
-<img width="500" height="500" alt="Gemini_Generated_Image_5dphlw5dphlw5dph" src="https://github.com/user-attachments/assets/63518c77-bd89-420b-9178-0956b53b372f" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/95240ddf-e109-4a84-b89b-92b516f9b295" alt="WiFiGuard Hero" width="820"/>
+</p>
 
 # WiFiGuard — Defensive System Against Evil Twin Wi-Fi Attacks
