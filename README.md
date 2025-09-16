@@ -43,9 +43,9 @@
 ---
 
 ## Install
-Clone repo (SSH):
+Clone repo :
 ```bash
-git clone git@github.com:YOUR-USER/Applied-Project.git
+git clone https://github.com/sanith2005/Applied-Project.git
 cd Applied-Project/defensive/src
 python3 -m venv venv
 source venv/bin/activate
