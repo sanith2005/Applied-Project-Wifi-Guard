@@ -2,12 +2,13 @@
   <img src="https://github.com/user-attachments/assets/95240ddf-e109-4a84-b89b-92b516f9b295" alt="WiFiGuard Hero" width="300"/>
 </p>
 
-# WiFiGuard — Defensive System Against Evil Twin Wi-Fi Attacks
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-BSD--3--Clause-blue" />
+  <img alt="Build Status" src="https://github.com/sanith2005/Applied-Project/actions/workflows/ci.yml/badge.svg" />
+  <img alt="Release" src="https://img.shields.io/github/v/release/sanith2005/Applied-Project" />
+  <img alt="Stars" src="https://img.shields.io/github/stars/sanith2005/Applied-Project?style=social" />
+</p>
 
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)]()
-[![Build Status](https://github.com/YOUR-USER/Applied-Project/actions/workflows/ci.yml/badge.svg)]()
-[![Release](https://img.shields.io/github/v/release/YOUR-USER/Applied-Project)]()
-[![Stars](https://img.shields.io/github/stars/YOUR-USER/Applied-Project?style=social)]()
 
 > WiFiGuard detects rogue APs (Evil Twin), deauth floods, and optionally auto-mitigates by disconnecting clients or switching channels. Designed for Linux (Kali) — research & educational use only.
 
