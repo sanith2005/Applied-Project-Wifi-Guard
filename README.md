@@ -33,4 +33,22 @@
 - Optional auto-disconnect (nmcli/netsh) and router channel switching hooks
 - Clean CLI UX and modular Python code (`scanner.py`, `analyze_scan.py`, `WiFiGuard.py`, `Main.py`)
 
+## Requirements
+- Linux (Kali recommended)
+- Python 3.11+
+- `aircrack-ng` (airodump-ng)
+- `nmcli` (NetworkManager) for disconnects
+- Optional: `winotify` / `libnotify` for notifications
+
+---
+
+## Install
+Clone repo (SSH):
+```bash
+git clone git@github.com:YOUR-USER/Applied-Project.git
+cd Applied-Project/defensive/src
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
 
