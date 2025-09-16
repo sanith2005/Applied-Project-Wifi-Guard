@@ -1,0 +1,15 @@
+interface: "wlan0"              # your Wi-Fi interface name
+poll_interval_sec: 1            # check every second
+debounce_seconds: 5             # condition must last 5s before action
+cooldown_seconds: 45            # suppress duplicate alerts for 45s
+notifications:
+  enabled: true                 # show system notifications
+actions:
+  auto_disconnect: true          # disconnect when suspicious
+  auto_reconnect: false          # don’t auto-reconnect (safer)
+trusted_profiles:
+  - ssid: "Dialog 4G 335"        # your REAL Wi-Fi SSID (case-sensitive)
+    bssids:
+      - "98:A9:42:74:E5:37"      # your REAL router’s BSSID (MAC in uppercase)
+    security: "WPA2-PSK"         # expected security type
+log_path: "../logs/defense_log.csv"
