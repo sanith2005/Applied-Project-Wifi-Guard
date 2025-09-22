@@ -1,8 +1,0 @@
-
-BSSID, First time seen, Last time seen, channel, Speed, Privacy, Cipher, Authentication, Power, # beacons, # IV, LAN IP, ID-length, ESSID, Key
-D0:5F:AF:05:6C:B8, 2025-09-04 15:06:35, 2025-09-04 15:06:35,  5, 270, WPA2, CCMP TKIP, PSK, -62,        1,        0,   0.  0.  0.  0,  16, MITM Attack Test, 
-98:A9:42:79:E5:37, 2025-09-04 15:06:35, 2025-09-04 15:06:35, 11,  65, OPN, ,   , -46,        2,        0,   0.  0.  0.  0,  16, Dialog 4G 335​, 
-D0:5F:AF:05:6C:B9, 2025-09-04 15:06:35, 2025-09-04 15:06:35,  5, 270, WPA2, CCMP TKIP, PSK, -61,        1,        0,   0.  0.  0.  0,   6, , 
-
-Station MAC, First time seen, Last time seen, Power, # packets, BSSID, Probed ESSIDs
-
