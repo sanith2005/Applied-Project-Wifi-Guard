@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-WiFiGuard — Defensive Wi‑Fi monitor & auto‑disconnect (full, patched)
+WiFiGuard — Defensive Wi-Fi monitor & interactive auto-disconnect (patched)
 
-Behavior
-- Polls current Wi‑Fi connection (Linux first‑class; Windows best‑effort)
-- Detects Evil‑Twin / rogue AP conditions:
-  • SSID match + BSSID mismatch (primary)
-  • Security/key_mgmt downgrade or mismatch
-  • Optional channel mismatch (if configured)
-- On incident: notify user + auto‑disconnect (configurable)
-- Cooldown & debounce to avoid alert spam
-- CSV logging of incidents → defaults to ./logs/alerts.csv (same file as other scan results)
-
-Run (Linux/Kali):
+Usage:
   sudo python3 wifiguard.py -c config.yaml
 
-If no config file is present, a sample is written and the program exits.
+Features:
+- Detects Evil-Twin conditions (SSID match + BSSID mismatch, security mismatch)
+- Interactive prompt in terminal (non-blocking) to allow operator to choose action
+- Desktop notifications sent AFTER action so they reflect the chosen result
+- Bright-blue terminal notification banner (wrapped and width-limited)
+- Serialized terminal printing (avoids overlapping boxes)
+- Safe timeout behavior: prefer disconnect for BSSID_MISMATCH timeouts
+- Cooldown & debounce to avoid alert spam
+- CSV logging of incidents
 """
 from __future__ import annotations
 
@@ -30,8 +28,30 @@ import re
 import subprocess
 import sys
 import time
+import threading
+import select
+import shutil
+import textwrap
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
+
+# POSIX-only imports for single-char read with timeout; optional fallback for Windows
+try:
+    import termios
+    import tty
+except Exception:
+    termios = None  # type: ignore
+    tty = None     # type: ignore
+
+# ANSI color constants
+BLUE = "\033[38;5;39m"
+BRIGHT_BLUE = "\033[38;5;39m"
+RESET = "\033[0m"
+
+# serialize terminal output so we don't get overlapping boxes
+PRINT_LOCK = threading.Lock()
+MAX_BANNER_WIDTH = 78   # tune this if you have wider terminals
 
 # Resolve project root (../ from this file) and set a default logs path there
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -83,7 +103,7 @@ def normalize_ssid(s: Optional[str]) -> Optional[str]:
 
 
 def ascii_clean(s: Optional[str]) -> Optional[str]:
-    """Drop non‑ASCII artifacts (e.g., stray 'â') and trim."""
+    """Drop non-ASCII artifacts (e.g., stray 'â') and trim."""
     if s is None:
         return None
     try:
@@ -100,7 +120,7 @@ def now_iso() -> str:
 @dataclass
 class TrustedProfile:
     ssid: str
-    bssids: List[str] = field(default_factory=list)  # Uppercase, colon‑separated
+    bssids: List[str] = field(default_factory=list)  # Uppercase, colon-separated
     security: Optional[str] = None                   # "WPA2-PSK", "WPA3-SAE", "OPEN"
     channel: Optional[int] = None
 
@@ -114,6 +134,14 @@ class Notifications:
     enabled: bool = True
 
 @dataclass
+class InteractivePrompt:
+    enabled: bool = False
+    timeout_seconds: float = 15.0
+    default_action: str = "disconnect"  # "disconnect" or "ignore"
+    allow_multiple_prompts: bool = False
+    post_action_countdown: int = 5      # seconds shown after action (0 disables)
+
+@dataclass
 class Config:
     interface: str = "wlan0"
     poll_interval_sec: float = 1.0
@@ -122,7 +150,8 @@ class Config:
     notifications: Notifications = field(default_factory=Notifications)
     actions: Actions = field(default_factory=Actions)
     trusted_profiles: List[TrustedProfile] = field(default_factory=list)
-    log_path: str = DEFAULT_LOG_PATH  # force logs to ../logs/alerts.csv
+    log_path: str = DEFAULT_LOG_PATH  # force logs to ../logs/defense_log.csv
+    interactive_prompt: InteractivePrompt = field(default_factory=InteractivePrompt)
 
     @staticmethod
     def from_mapping(m: Dict) -> "Config":
@@ -137,6 +166,7 @@ class Config:
             )
             for tp in m.get("trusted_profiles", [])
         ]
+        ip = m.get("interactive_prompt", {}) or {}
         return Config(
             interface=m.get("interface", "wlan0"),
             poll_interval_sec=float(m.get("poll_interval_sec", 1)),
@@ -145,7 +175,14 @@ class Config:
             notifications=Notifications(**m.get("notifications", {"enabled": True})),
             actions=Actions(**m.get("actions", {"auto_disconnect": True, "auto_reconnect": False})),
             trusted_profiles=tps,
-            log_path=DEFAULT_LOG_PATH,
+            log_path=m.get("log_path", DEFAULT_LOG_PATH),
+            interactive_prompt=InteractivePrompt(
+                enabled=bool(ip.get("enabled", False)),
+                timeout_seconds=float(ip.get("timeout_seconds", 15)),
+                default_action=ip.get("default_action", "disconnect"),
+                allow_multiple_prompts=bool(ip.get("allow_multiple_prompts", False)),
+                post_action_countdown=int(ip.get("post_action_countdown", 5)),
+            ),
         )
 
 SAMPLE_CONFIG = {
@@ -163,7 +200,14 @@ SAMPLE_CONFIG = {
             "channel": 6,
         }
     ],
-    "log_path": "../logs/alerts.csv",
+    "log_path": "../logs/defense_log.csv",
+    "interactive_prompt": {
+        "enabled": True,
+        "timeout_seconds": 15,
+        "default_action": "disconnect",
+        "allow_multiple_prompts": False,
+        "post_action_countdown": 5
+    }
 }
 
 
@@ -208,7 +252,7 @@ def is_linux() -> bool:
 def is_windows() -> bool:
     return platform.system().lower() == "windows"
 
-# ------------------------------ Wi‑Fi status ------------------------------
+# ------------------------------ Wi-Fi status ------------------------------
 
 @dataclass
 class WifiStatus:
@@ -318,35 +362,85 @@ def get_status_windows() -> WifiStatus:
                 sec = "OPEN"
     return WifiStatus(connected=connected, ssid=ssid, bssid=bssid, security=sec, channel=ch)
 
-# ------------------------------ Actions ------------------------------
+# ------------------------------ Actions / Notify ------------------------------
+
+def _print_terminal_notification(title: str, message: str) -> None:
+    """Bright-blue single-line box notification, safe and clean in VSCode."""
+    with PRINT_LOCK:
+        # add spacing so banners don't collide with prompt line
+        print("\n\n", end="")
+
+        # determine usable width
+        try:
+            term_width = shutil.get_terminal_size().columns
+        except Exception:
+            term_width = MAX_BANNER_WIDTH
+        width = min(MAX_BANNER_WIDTH, max(40, term_width - 4))
+
+        # prepare wrapped message lines
+        wrapped_msg_lines = []
+        for line in message.splitlines():
+            wrapped_msg_lines.extend(textwrap.wrap(line, width=width) or [""])
+        title_line = f" {title} "
+        lines = [title_line] + wrapped_msg_lines
+
+        # compute actual box width
+        content_width = max(len(l) for l in lines)
+        box_width = content_width + 2  # padding inside box
+
+        # Borders
+        top = BRIGHT_BLUE + "┌" + "─" * box_width + "┐" + RESET
+        bot = BRIGHT_BLUE + "└" + "─" * box_width + "┘" + RESET
+
+        print(top)
+        for ln in lines:
+            mid = BRIGHT_BLUE + "│ " + ln.ljust(content_width) + " │" + RESET
+            print(mid)
+        print(bot)
+        print()
+
 
 def notify(title: str, message: str, duration_sec: int = 8, enabled: bool = True) -> None:
+    """Cross-platform desktop notification + bright-blue terminal banner fallback."""
     if not enabled:
-        print(f"[NOTIFY disabled] {title}: {message}")
+        # still print terminal banner even if desktop not used
+        _print_terminal_notification(title, message)
         return
+
+    sent = False
     if is_linux():
         rc, _, _ = run_cmd(["which", "notify-send"])
         if rc == 0:
-            run_cmd(["notify-send", "--urgency=critical", title, message, f"--expire-time={int(duration_sec)*1000}"])
-            return
-    if is_windows():
+            try:
+                run_cmd(["notify-send", "--urgency=critical", title, message, f"--expire-time={int(duration_sec)*1000}"])
+                sent = True
+            except Exception:
+                sent = False
+
+    if is_windows() and not sent:
         try:
             from win10toast import ToastNotifier  # type: ignore
             ToastNotifier().show_toast(title, message, duration=duration_sec, threaded=True)
-            return
+            sent = True
         except Exception:
             try:
                 from winotify import Notification, audio  # type: ignore
                 n = Notification(app_id="WiFiGuard", title=title, msg=message)
                 n.set_audio(audio.Default, loop=False)
                 n.show()
-                return
+                sent = True
             except Exception:
-                pass
-    print(f"[NOTIFY] {title}: {message}")
+                sent = False
+
+    # ALWAYS print a bright-blue terminal banner so you see it in the terminal GUI too.
+    try:
+        _print_terminal_notification(title, message)
+    except Exception:
+        print(f"[NOTIFY] {title}: {message}")
 
 
 def disconnect(cfg: Config) -> None:
+    """Disconnect the configured interface. Best-effort, never raises."""
     if is_linux():
         rc, _, _ = run_cmd(["nmcli", "dev", "disconnect", cfg.interface])
         if rc != 0:
@@ -370,7 +464,7 @@ def security_mismatch(expected: Optional[str], observed: Optional[str]) -> bool:
         return False
     e = expected.upper()
     o = observed.upper()
-    # Treat any WPA/WPA2‑PSK bucket as equivalent if expected is WPA2‑PSK (and not SAE)
+    # Treat any WPA/WPA2-PSK bucket as equivalent if expected is WPA2-PSK (and not SAE)
     if e.startswith("WPA2") and ("WPA2" in o or "WPA-PSK" in o or "WPA" in o) and "SAE" not in o:
         return False
     return e != o
@@ -409,6 +503,7 @@ def log_incident(cfg: Config, status: WifiStatus, tp: TrustedProfile, reason: st
 
 # ------------------------------ Main loop ------------------------------
 
+
 class WiFiGuard:
     def __init__(self, cfg: Config, debug: bool = False):
         self.cfg = cfg
@@ -416,6 +511,8 @@ class WiFiGuard:
         self.cooldowns: Dict[Tuple[str, str, str], float] = {}
         # pending_start: (ssid, bssid, reason, first_seen_ts)
         self.pending_start: Optional[Tuple[str, str, str, float]] = None
+        # prompt lock to avoid overlapping interactive prompts
+        self._prompt_lock = threading.Lock()
 
     def _get_status(self) -> WifiStatus:
         if is_linux():
@@ -433,6 +530,148 @@ class WiFiGuard:
     def _mark_alert(self, ssid: str, bssid: str, reason: str) -> None:
         key = (ssid, bssid, reason)
         self.cooldowns[key] = time.time()
+
+
+    def _readchar_with_timeout(self, timeout: float) -> Optional[str]:
+        """Prompt user for 'y' or 'n' with timeout. Reprompts until valid or timeout."""
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            try:
+                remaining = end_time - time.time()
+                r, _, _ = select.select([sys.stdin], [], [], remaining)
+                if not r:
+                    return None  # timeout
+
+                line = sys.stdin.readline().strip().lower()
+                if not line:
+                    # empty input, loop again until timeout
+                    continue
+                if line[0] in ("y", "n"):
+                    return line[0]
+                else:
+                    with PRINT_LOCK:
+                        print("Invalid input. Please type 'y' or 'n' and press Enter.")
+            except Exception:
+                return None
+        return None
+
+
+    def _prompt_user_for_action(self, status: WifiStatus, prof: TrustedProfile, reason: str) -> None:
+        """Threaded: prompt user in terminal and take action (disconnect or ignore), then log and notify."""
+        # prevent overlapping prompts unless allowed
+        if not self.cfg.interactive_prompt.allow_multiple_prompts:
+            if not self._prompt_lock.acquire(blocking=False):
+                if self.debug:
+                    print("[*] Prompt already active — skipping new prompt.")
+                return
+        else:
+            self._prompt_lock.acquire()
+
+        try:
+            timeout = float(self.cfg.interactive_prompt.timeout_seconds)
+            default_action = (self.cfg.interactive_prompt.default_action or "disconnect").lower()
+            ssid = ascii_clean(normalize_ssid(status.ssid))
+            bssid = status.bssid or ""
+            prompt_msg = (
+                f"\n[!] Evil Twin detected: SSID='{ssid}' BSSID='{bssid}'\n"
+                f"Press [y] to disconnect the client from this network, [n] to ignore.\n"
+                f"(Auto-{default_action} in {int(timeout)}s) > "
+            )
+
+            # Print detection prompt while holding PRINT_LOCK to avoid interleaving prints
+            with PRINT_LOCK:
+                try:
+                    sys.stdout.write(BLUE + prompt_msg + RESET)
+                    sys.stdout.flush()
+                except Exception:
+                    sys.stdout.write(prompt_msg)
+                    sys.stdout.flush()
+
+                # Wait for a single-char response (still inside PRINT_LOCK so nothing else prints)
+                ch = self._readchar_with_timeout(timeout)
+
+            # ch may be None (timeout/non-tty)
+            if ch is None:
+                # No keypress within timeout or non-tty.
+                # Safer default for BSSID_MISMATCH: prefer disconnect even if default_action = "ignore".
+                if default_action == "ignore" and reason == "BSSID_MISMATCH":
+                    action = "disconnect"
+                    if self.debug:
+                        with PRINT_LOCK:
+                            print(f"\n[*] No keypress — BSSID_MISMATCH detected, overriding default to {action}")
+                else:
+                    action = default_action
+                    if self.debug:
+                        with PRINT_LOCK:
+                            print(f"\n[*] No keypress detected — defaulting to {action}")
+            else:
+                if ch.lower() == "y":
+                    action = "disconnect"
+                elif ch.lower() == "n":
+                    action = "ignore"
+                else:
+                    action = "ignore"
+
+            actions_taken: List[str] = []
+            if action == "disconnect":
+                try:
+                    disconnect(self.cfg)
+                    actions_taken.append("DISCONNECT")
+                    if self.debug:
+                        with PRINT_LOCK:
+                            print("[*] Performed disconnect()")
+                except Exception as e:
+                    if self.debug:
+                        with PRINT_LOCK:
+                            print(f"[!] Disconnect call failed: {e}")
+            else:
+                if self.debug:
+                    with PRINT_LOCK:
+                        print("[*] Operator chose to ignore the incident.")
+
+            # optional reconnect
+            if "DISCONNECT" in actions_taken and self.cfg.actions.auto_reconnect and prof.bssids:
+                rc, _, _ = run_cmd(
+                    ["nmcli", "dev", "wifi", "connect", prof.ssid, "bssid", prof.bssids[0], "ifname", self.cfg.interface]
+                )
+                if rc == 0:
+                    actions_taken.append("RECONNECT")
+
+            # Log the incident (prompt thread logs so the action and choice are correlated)
+            action_str = "+".join(actions_taken) if actions_taken else "NOTIFY"
+            log_incident(self.cfg, status, prof, reason, action_str)
+
+            # Build and send desktop notification AFTER action so it reflects what happened
+            title = "⚠ Suspicious Wi-Fi"
+            msg = (
+                f"Untrusted access point detected. Action: {action_str}\n\n"
+                f"Reason: {reason}\n"
+                f"SSID: {ssid}\n"
+                f"BSSID: {bssid}"
+            )
+            notify(title, msg, enabled=self.cfg.notifications.enabled)
+
+            # Post-action terminal countdown (hold PRINT_LOCK while showing countdown so it doesn't get interrupted)
+            countdown = int(self.cfg.interactive_prompt.post_action_countdown or 0)
+            if countdown > 0:
+                with PRINT_LOCK:
+                    for i in range(countdown, 0, -1):
+                        try:
+                            sys.stdout.write(f"\r[+] Resuming monitoring in {i:2d}s... (press Ctrl+C to exit) ")
+                            sys.stdout.flush()
+                            time.sleep(1)
+                        except Exception:
+                            break
+                    sys.stdout.write("\n")
+                    sys.stdout.flush()
+
+        finally:
+            try:
+                self._prompt_lock.release()
+            except Exception:
+                pass
+
+    # ---------------------------------------------------
 
     def loop(self) -> None:
         print(f"[*] WiFiGuard running on interface {self.cfg.interface} (poll={self.cfg.poll_interval_sec}s, debounce={self.cfg.debounce_seconds}s, cooldown={self.cfg.cooldown_seconds}s)")
@@ -492,31 +731,41 @@ class WiFiGuard:
 
                 # Take action
                 actions_taken: List[str] = []
-                title = "⚠ Suspicious Wi-Fi Blocked"
 
                 # Clean the SSID so hidden Unicode/zero-width bytes don't render as boxes
                 clean_ssid = ascii_clean(normalize_ssid(status.ssid))
 
-                message = (
-                    "Untrusted access point detected. You were disconnected for security.\n\n"
-                    f"Reason: {reason}\n"
-                    f"SSID: {clean_ssid}\n"
-                    f"BSSID: {status.bssid}"
-                )
-                notify(title, message, enabled=self.cfg.notifications.enabled)
-
-                if self.cfg.actions.auto_disconnect:
-                    disconnect(self.cfg)
-                    actions_taken.append("DISCONNECT")
-                if self.cfg.actions.auto_reconnect and prof.bssids:
-                    rc, _, _ = run_cmd(
-                        ["nmcli", "dev", "wifi", "connect", prof.ssid, "bssid", prof.bssids[0], "ifname", self.cfg.interface]
-                    )
-                    if rc == 0:
-                        actions_taken.append("RECONNECT")
-
-                log_incident(self.cfg, status, prof, reason, "+".join(actions_taken) if actions_taken else "NOTIFY")
+                # We mark alert now to prevent duplicate prompts inside cooldown window.
+                # The actual notification is delivered after the action (in thread or headless branch).
                 self._mark_alert(status.ssid, status.bssid, reason)
+
+                # If interactive prompt is enabled, spawn a thread to prompt the operator (non-blocking).
+                if self.cfg.interactive_prompt.enabled:
+                    t = threading.Thread(target=self._prompt_user_for_action, args=(status, prof, reason), daemon=True)
+                    t.start()
+                else:
+                    # Headless / old behavior: immediate action + notify (unchanged)
+                    if self.cfg.actions.auto_disconnect:
+                        disconnect(self.cfg)
+                        actions_taken.append("DISCONNECT")
+                    if self.cfg.actions.auto_reconnect and prof.bssids:
+                        rc, _, _ = run_cmd(
+                            ["nmcli", "dev", "wifi", "connect", prof.ssid, "bssid", prof.bssids[0], "ifname", self.cfg.interface]
+                        )
+                        if rc == 0:
+                            actions_taken.append("RECONNECT")
+                    log_incident(self.cfg, status, prof, reason, "+".join(actions_taken) if actions_taken else "NOTIFY")
+
+                    # Notify after the immediate action so it reflects what happened
+                    title = "⚠ Suspicious Wi-Fi"
+                    msg = (
+                        f"Untrusted access point detected. Action: {'+'.join(actions_taken) if actions_taken else 'NOTIFY'}\n\n"
+                        f"Reason: {reason}\n"
+                        f"SSID: {clean_ssid}\n"
+                        f"BSSID: {status.bssid}"
+                    )
+                    notify(title, msg, enabled=self.cfg.notifications.enabled)
+
                 time.sleep(self.cfg.poll_interval_sec)
         except KeyboardInterrupt:
             print("\n[+] WiFiGuard exiting cleanly.")
@@ -524,7 +773,7 @@ class WiFiGuard:
 # ------------------------------ Entrypoint ------------------------------
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="WiFiGuard — defensive Wi‑Fi auto‑disconnect monitor")
+    p = argparse.ArgumentParser(description="WiFiGuard — defensive Wi-Fi auto-disconnect monitor")
     p.add_argument("-c", "--config", default="config.yaml", help="Path to config YAML/JSON (default: config.yaml)")
     p.add_argument("--debug", action="store_true", help="Verbose debug prints")
     return p.parse_args(argv)
@@ -544,3 +793,8 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+
+
+
+
