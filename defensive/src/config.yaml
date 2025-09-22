@@ -1,15 +1,28 @@
-interface: "wlan0"              # your Wi-Fi interface name
+# WiFiGuard config.yaml
+interface: "wlan0"              # Wi-Fi interface name
 poll_interval_sec: 1            # check every second
-debounce_seconds: 5             # condition must last 5s before action
-cooldown_seconds: 45            # suppress duplicate alerts for 45s
+debounce_seconds: 5             # condition must last this many seconds before action
+cooldown_seconds: 5            # suppress duplicate alerts for this many seconds
+
 notifications:
-  enabled: true                 # show system notifications
+  enabled: true                 # show desktop notifications (notify-send / win10toast)
+
 actions:
-  auto_disconnect: true          # disconnect when suspicious
-  auto_reconnect: false          # don’t auto-reconnect (safer)
+  auto_disconnect: true         # if interactive_prompt disabled, automatically disconnect
+  auto_reconnect: false         # attempt reconnect to trusted BSSID after disconnect (optional)
+
 trusted_profiles:
-  - ssid: "Dialog 4G 335"        # your REAL Wi-Fi SSID (case-sensitive)
+  - ssid: "Dialog 4G 335"       # Wi-Fi SSID
     bssids:
-      - "98:A9:42:74:E5:37"      # your REAL router’s BSSID (MAC in uppercase)
-    security: "WPA2-PSK"         # expected security type
-log_path: "../logs/defense_log.csv"
+      - "98:A9:42:74:E5:37"     # router’s BSSID (MAC in uppercase)
+    security: "WPA2-PSK"        # expected security type (WPA2-PSK / WPA3-SAE / OPEN)
+    channel: 6                  # optional, since channel mismatch is not included
+
+log_path: "../logs/defense_log.csv"  # path where incidents will be written (relative to project root)
+
+# Interactive prompt settings (new)
+interactive_prompt:
+  enabled: true                 # true => prompt in terminal (non-blocking). false => headless behavior
+  timeout_seconds: 15           # how many seconds to wait for Y/N before using default_action
+  default_action: "ignore"  # "disconnect" or "ignore" when timeout occurs / non-interactive stdin
+  allow_multiple_prompts: false # false => skip overlapping prompts; true => allow concurrent prompts
