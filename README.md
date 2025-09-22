@@ -1,16 +1,12 @@
+## WIFIGuard
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/95240ddf-e109-4a84-b89b-92b516f9b295" alt="WiFiGuard Hero" width="300"/>
 </p>
 
-<p align="center">
-  <img alt="License" src="https://img.shields.io/badge/license-BSD--3--Clause-blue" />
-  <img alt="Build Status" src="https://github.com/sanith2005/Applied-Project/actions/workflows/ci.yml/badge.svg" />
-  <img alt="Release" src="https://img.shields.io/github/v/release/sanith2005/Applied-Project" />
-  <img alt="Stars" src="https://img.shields.io/github/stars/sanith2005/Applied-Project?style=social" />
-</p>
 
 
-> WiFiGuard detects rogue APs (Evil Twin), deauth floods, and optionally auto-mitigates by disconnecting clients or switching channels. Designed for Linux (Kali) — research & educational use only.
+> WiFiGuard is a defensive security toolkit designed to protect users against one of the most common Wi-Fi threats: the Evil Twin attack. By continuously scanning the wireless environment using airodump-ng,         WiFiGuard analyzes live network data to identify duplicate SSIDs, mismatched BSSIDs, abnormal beacon activity, and sudden client deauthentications — all strong indicators of a rogue access point or                deauthentication flood in progress. When a threat is detected, the system alerts the user instantly through on-screen notifications and logs the event for analysis. In addition to detection, WiFiGuard provides    active defense features, such as automatically disconnecting clients from suspicious APs and triggering router channel changes to evade sustained attacks. The toolkit is written in Python, modular in design,      and tailored for Linux environments (with Kali Linux as the primary testbed). It is intended strictly for research, academic demonstration, and educational use, helping cybersecurity learners and professionals    understand how modern wireless intrusions can be detected and mitigated in real time.
 
 ---
 
@@ -43,13 +39,17 @@
 
 ---
 
-## Install
-Clone repo :
+## Installation
+- Clone the repo :
 ```bash
 git clone https://github.com/sanith2005/Applied-Project.git
-cd Applied-Project/defensive/src
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+```
+- Now head to the cloned Directory and run the Main.py 
+```bash
+$ cd Applied-Project/defensive/src
+$ sudo python3 Main.py
+```
+
+
 
 
