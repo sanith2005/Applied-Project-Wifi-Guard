@@ -46,7 +46,7 @@ git clone https://github.com/sanith2005/Applied-Project.git
 ```
 - Now head to the cloned Directory and run the Main.py 
 ```bash
-$ cd Applied-Project/defensive/src
+$ cd ~/Desktop/Applied\ project/defensive/src
 $ sudo python3 Main.py
 ```
 
