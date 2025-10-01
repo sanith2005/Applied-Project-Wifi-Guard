@@ -42,6 +42,10 @@
 ```bash
 git clone https://github.com/sanith2005/Applied-Project.git
 ```
+- Install requirements :
+```bash
+pip install -r requirements.txt
+```
 - Now head to the cloned Directory and run the Main.py 
 ```bash
 $ cd ~/Desktop/Applied\ project/defensive/src
