@@ -14,7 +14,7 @@
 - [Features](#features)
 - [Demo / Screenshots](#demo--screenshots)
 - [Requirements](#requirements)
-- [Install](#install)
+- [Installation](#installation)
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Development](#development)
