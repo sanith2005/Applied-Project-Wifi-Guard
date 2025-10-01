@@ -16,8 +16,6 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Configuration](#configuration)
-- [Development](#development)
 
 ---
 
