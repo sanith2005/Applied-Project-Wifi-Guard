@@ -75,3 +75,6 @@ Timestamp,ESSID,BSSID,Channel,Packets,Power,Privacy,Reason
 2025-09-17 04:47:32,Dialog 4G 335​,98:A9:42:79:E5:37,10,,-38,OPN,Evil Twin: Dialog 4G 335 seen from rogue BSSID (expected 98:A9:42:74:E5:37); Evil Twin: Dialog 4G 335 advertised as OPEN (expected WPA2)
 2025-09-17 04:54:43,Dialog 4G 335​,98:A9:42:79:E5:37,10,,-36,OPN,Evil Twin: Dialog 4G 335 seen from rogue BSSID (expected 98:A9:42:74:E5:37); Evil Twin: Dialog 4G 335 advertised as OPEN (expected WPA2)
 2025-09-17 04:56:53,Dialog 4G 335​,98:A9:42:79:E5:37,10,,-38,OPN,Evil Twin: Dialog 4G 335 seen from rogue BSSID (expected 98:A9:42:74:E5:37); Evil Twin: Dialog 4G 335 advertised as OPEN (expected WPA2)
+2025-09-28 06:57:31,Dialog 4G 335​,98:A9:42:79:E5:37,10,,-36,OPN,Evil Twin: Dialog 4G 335 seen from rogue BSSID (expected 98:A9:42:74:E5:37); Evil Twin: Dialog 4G 335 advertised as OPEN (expected WPA2)
+2025-09-28 07:38:39,Dialog 4G 335,98:A9:42:74:E5:37,11,649,-46,WPA2,High packet count detected (≥600) — suspicious activity
+2025-09-28 07:39:10,Dialog 4G 335,98:A9:42:74:E5:37,11,649,-46,WPA2,High packet count detected (≥600) — suspicious activity
