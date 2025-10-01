@@ -12,7 +12,6 @@
 
 ## Table of Contents
 - [Features](#features)
-- [Demo / Screenshots](#demo--screenshots)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#Usage)
