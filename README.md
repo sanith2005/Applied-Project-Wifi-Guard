@@ -18,8 +18,6 @@
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Development](#development)
-- [Contributing](#contributing)
-- [License](#license)
 
 ---
 
