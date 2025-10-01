@@ -39,7 +39,7 @@ RED   = "\033[91m"         # red for errors/warnings
 LOGS_DIR = os.path.expanduser("~/Desktop/Applied project/defensive/logs")
 ALERTS_LOG = os.path.join(LOGS_DIR, "alerts.csv")
 
-PACKET_THRESHOLD = 1700     # suspicious when ≥ this many packets per BSSID (sum of client #Packets)
+PACKET_THRESHOLD = 1000     # suspicious when ≥ this many packets per BSSID (sum of client #Packets)
 MAX_WAIT_SECONDS = 60       # give CSV time to collect non-zero packet counts
 POLL_SECONDS = 1            # how often to poll for updates
 
