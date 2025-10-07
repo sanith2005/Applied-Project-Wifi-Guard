@@ -39,6 +39,14 @@
 ```bash
 git clone https://github.com/sanith2005/Applied-Project.git
 ```
+- Install dependencies if not available :
+```bash
+sudo apt update && sudo apt install -y \
+  python3 python3-pip \
+  aircrack-ng iw iproute2 wireless-tools \
+  network-manager libnotify-bin macchanger \
+  tcpdump tshark dnsmasq hostapd
+```
 
 ## Usage
 - Head to the cloned Directory and run the Main.py 
