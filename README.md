@@ -15,6 +15,7 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#Usage)
+- [Support](#support)
 
 ---
 
@@ -54,6 +55,12 @@ sudo apt update && sudo apt install -y \
 $ cd ~/Desktop/Applied\ project/defensive/src
 $ sudo python3 Main.py
 ```
+
+## 🛠 Support
+If you encounter issues or need technical assistance, please contact the development team at:
+📧 **wifiguardhelp@gmail.com**
+Alternatively, you can [open a new issue](https://github.com/sanith2005/Applied-Project/issues) on GitHub.
+
 
 
 
