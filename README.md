@@ -15,7 +15,7 @@
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#Usage)
-- [Support](#support)
+- [Support](#Support)
 
 ---
 
