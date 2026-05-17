@@ -7,7 +7,9 @@
 
 
 > Hardware Requirement Notice:
+> 
 This project requires two Wi-Fi adapters to function correctly during testing and demonstration:
+
   Adapter 1: Dedicated to monitor mode scanning and packet capture (used by airodump-ng for detecting nearby wireless networks and anomalies).
   Adapter 2: Dedicated to network connectivity / client association (used for maintaining the system’s active connection and executing mitigation actions such as    automatic disconnection from suspicious access points).
 
