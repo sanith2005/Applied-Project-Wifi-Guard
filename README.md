@@ -35,7 +35,7 @@ WiFiGuard is a defensive security toolkit designed to protect users against one 
 - Clean CLI UX and modular Python code (`scanner.py`, `analyze_scan.py`, `WiFiGuard.py`, `Main.py`)
 
 ## Requirements
-Note - You need two wifi adapters 
+Note - You need two wifi adapters as mentioned in the **Hardware Requirement Notice** above
 - Linux (Kali recommended)
 - Python 3.11+
 - `aircrack-ng` (airodump-ng)
