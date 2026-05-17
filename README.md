@@ -5,8 +5,7 @@
 </p>
 
 
-
-> Hardware Requirement Notice:
+## Hardware Requirement Notice:
 > 
 > This project requires two Wi-Fi adapters to function correctly during testing and demonstration:
 > 
