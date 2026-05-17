@@ -1,0 +1,14 @@
+# Runtime scan logs
+defensive/logs/
+defensive/src/logs/
+
+# CSV outputs
+*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.env
