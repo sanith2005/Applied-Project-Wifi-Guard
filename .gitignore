@@ -1,14 +1,48 @@
+# =========================
 # Runtime scan logs
+# =========================
 defensive/logs/
 defensive/src/logs/
 
-# CSV outputs
+# Any generated CSV logs anywhere
 *.csv
 
-# Python cache
+# =========================
+# Python cache / bytecode
+# =========================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
+# =========================
 # Virtual environments
+# =========================
 venv/
 .env
+.venv/
+
+# =========================
+# OS junk files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE / editor files
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Python tooling cache
+# =========================
+.pytest_cache/
+.mypy_cache/
+.cache/
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.log
